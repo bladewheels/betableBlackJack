@@ -1,19 +1,20 @@
 # betableBlackJack
+
 Demo API in Go for a single-user BlackJack game
 
-The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER at a TABLE; polling (or eg WebSockets, in a future implementation) may be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints.
+The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER at a TABLE; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent single-player games are supported.
 
 The actors in this drama include:
 
-TABLE:
-- holds game state, in serialized JSON
+GAME:
+- holds game state
 - DEALER
-- list of PLAYERs, possibly empty or limited to MAX_PLAYERS
+- list of PLAYERs, possibly empty or limited to ~~MAX_PLAYERS~~ 1
 - DECK
 
 DECK:
 - deck of cards, from remote API
-- CARDs can be dealt to DEALER or PLAYER(s) HANDs
+- CARDs can be dealt to DEALER or a PLAYER's HAND
 - can be shuffled
 
 CARD:
@@ -25,23 +26,31 @@ HAND:
 - a collection of cards that were dealt from the DECK
 
 DEALER:
-- deals cards from DECK to self or PLAYER's HANDs at TABLE
+- deals cards from DECK to self or a PLAYER's HAND in the GAME
 - judges whether a HAND is > 21 in TOTAL
 - stops self-dealing when 17 TOTAL HAND is reached
 
 PLAYER:
-- can initiate or abandon a game of BlackJack at a TABLE
+- can initiate or abandon a game of BlackJack
 - can play BlackJack by:
   - asking to be HIT ie add another CARD to their HAND
-  - asking to STAND ie allow the DEALER (or other PLAYER(s)) to try to beat the PLAYER's HAND
+  - asking to STAND ie allow the DEALER the chance to beat the PLAYER's HAND
 
-API, the following URIs are used by PLAYER(s) to interact with the game:
-- /api/tables w/GET returns all TABLE state(s); a PLAYER may join a TABLE if a game is not in progress.
-- /api/tables/{tableID} w/GET returns the state of a TABLE.
-- /api/tables w/POST returns a new TABLE.
-- /api/table/{tableID}/game w/POST starts a new game; all the PLAYERs and the DEALER at the TABLE are dealt their hands at this point, returns the TABLE state. Other PLAYERs at the TABLE would need to poll the /api/table GET endpoint to ascertain the state of the TABLE ie what their HAND looks like.
-- /api/table/{tableID}/game/{playerID}/hit w/POST adds another CARD to the PLAYER's HAND, returns the TABLE state; that state may indicate GAME_OVER for the PLAYER ie if their HAND > 21.
-- /api/table/{tableID}/game/{playerID}/stand w/POST signals the DEALER that it may now complete play with the PLAYER, returns the TABLE state; if there is only 1 PLAYER at the TABLE then the state includes the outcome of the game, otherwise each PLAYER standing would need to poll the /api/table GET endpoint to ascertain the state of the TABLE ie who won.
+API, the following URIs are used by PLAYER to interact with the game:
+- ~~GET: /api/games returns all GAME IDs.~~ not implemented
+- ~~GET: /api/games/{gameID} returns the state of a GAME.~~ not implemented
+- POST: /api/games starts a new game; the PLAYER and the DEALER are dealt their hands at this point, returns the GAME state.
+- POST: /api/games/{gameID}/hit adds another CARD to the PLAYER's HAND, returns the GAME state; that state may indicate BUST for the PLAYER i.e. if their HAND > 21.
+- POST: /api/games/{gameID}/stand signals the DEALER to complete play, returns the GAME state; the state includes the outcome of the game.
+
+Typical gameplay (e.g. w/curl, telnet, Postman, etc.):
+
+- POST to: /api/games, the response models the state of a new GAME, including the HANDs dealt to the DEALER and PLAYER
+ - examine the GAME state and identify the GAME ID; decide whether to HIT or STAND and use the ID in the following calls:
+- to HIT, POST to: /api/games/{gameID}/hit
+ - examine the GAME state and identify your HAND; decide whether to HIT or STAND
+ - repeat ad naseum or until BUST or STANDing
+- to STAND, POST to: /api/games/{gameID}/stand
 
 Thoughts about the design/implementation:
 
