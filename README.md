@@ -36,7 +36,7 @@ PLAYER:
   - asking to STAND ie allow the DEALER (or other PLAYER(s)) to try to beat the PLAYER's HAND
 
 API, the following URIs are used by PLAYER(s) to interact with the game:
-- /api/tables w/GET returns all TABLEs; a PLAYER may join a TABLE if a game is not in progress.
+- /api/tables w/GET returns all TABLE state(s); a PLAYER may join a TABLE if a game is not in progress.
 - /api/tables/{tableID} w/GET returns the state of a TABLE.
 - /api/tables w/POST returns a new TABLE.
 - /api/table/{tableID}/game w/POST starts a new game; all the PLAYERs and the DEALER at the TABLE are dealt their hands at this point, returns the TABLE state. Other PLAYERs at the TABLE would need to poll the /api/table GET endpoint to ascertain the state of the TABLE ie what their HAND looks like.
