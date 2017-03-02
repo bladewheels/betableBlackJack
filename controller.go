@@ -20,6 +20,8 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 	deckWithCards, err := getNewShuffledDeckWithCards(deckCount, cardCount)
 	if err != nil {
 		fmt.Println("Failed to get Deck!")
+		fmt.Fprintf(w, "Failed to get Deck, please try again later.")
+		return
 	}
 
 	// Deal hands to Player and Dealer
