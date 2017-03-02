@@ -2,8 +2,8 @@
 
 Demo API in Go for a single-user BlackJack game
 
-The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER in a GAME; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent, single-player games ARE supported.
-Naturals and splitting pairs are not currently supported in this implementation.
+The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER in a GAME; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent, single-player games with naturals ARE supported.
+Splitting pairs is not currently supported in this implementation.
 
 The actors in this drama include:
 
