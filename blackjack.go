@@ -2,11 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strconv"
+
 	"github.com/bndr/gopencils"
 	"github.com/gorilla/mux"
 )
+
+var gameChannelMap = make(map[string]chan Game)
 
 // Hello is the default response handler for requests to the /api/userId URI
 func Hello(w http.ResponseWriter, r *http.Request) {
@@ -26,43 +32,135 @@ func Hello(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// GetGame is the response handler for requests to the /api/game URI
-func GetGame(w http.ResponseWriter, r *http.Request) {
+// The response handler for requests to the /api/games URI; TODO: limit to POST only
+func startGame(w http.ResponseWriter, r *http.Request) {
 
-	HelloMessage := "Welcome to BlackJack!"
-	SomethingElseEntirely := "gameOn"
-
-	message := API{HelloMessage, SomethingElseEntirely}
-	output, err := json.Marshal(message)
-
+	deckCount := 6
+	cardCount := 4
+	deckWithCards, err := getNewShuffledDeckWithCards(deckCount, cardCount)
 	if err != nil {
 		fmt.Println("Something went wrong!")
 	}
+	fmt.Println("Got Deck!")
+
+	// Deal hands to Player and Dealer
+	player := &Player{}
+	player.Cards = append(player.Cards, deckWithCards.Cards[0])
+	dealer := &Dealer{}
+	dealer.Cards = append(dealer.Cards, deckWithCards.Cards[1])
+	player.Cards = append(player.Cards, deckWithCards.Cards[2])
+	dealer.SecretCard = deckWithCards.Cards[3]
+
+	// Calculate point totals for hands...
+
+	// ...of the Player
+	playerHandTotals := make([]int, 1)
+	//playerSum := int64(0)
+	for _, card := range player.Cards {
+		cardValue, err2 := strconv.ParseInt(card.Value, 10, 0)
+		if err2 != nil {
+			// Must be an Ace or face Card
+			if card.Value == "ACE" {
+				// TODO: Incomplete
+				//initialTotal := playerHandTotals[0]
+				//playerHandTotals[0] = initialTotal + 1
+				//if len(playerHandTotals) > 1 {
+				for i, initialTotal := range playerHandTotals {
+					playerHandTotals[i] = initialTotal + 1
+					playerHandTotals = append(playerHandTotals, initialTotal+11)
+				}
+				//}
+				// TODO: add 1&11 values to existing slots in slice AND add a new slot and add it there too
+				//append(playerHandTotals, initialTotal + 11)
+			} else {
+				for i, initialTotal := range playerHandTotals {
+					playerHandTotals[i] = initialTotal + 10
+				}
+			}
+		} else {
+			for i, initialTotal := range playerHandTotals {
+				playerHandTotals[i] = initialTotal + int(cardValue)
+			}
+		}
+	}
+	//playerHandTotals = append(playerHandTotals, int(playerSum))
+	player.HandTotals = playerHandTotals
+
+	// TODO: ...of the Dealer
+
+	deck := &Deck{DeckID: deckWithCards.DeckID, Remaining: deckWithCards.Remaining}
+	game := Game{deck.DeckID, *deck, 52*deckCount - 75, PublicDealer{Dealer: dealer}, *player}
+	defer queueGame(game)
+
+	output, err := json.Marshal(game)
+	if err != nil {
+		fmt.Println("Something went wrong!")
+	}
+	fmt.Println("Got Game as JSON! i.e. ", string(output))
 
 	fmt.Fprintf(w, string(output))
 }
 
-// HitMe is the response handler for requests to the /api/game/gameId/hit URI
-func HitMe(w http.ResponseWriter, r *http.Request) {
+// Queue the Game state in a channel for future use
+func queueGame(game Game) {
+	channel, ok := gameChannelMap[game.GameID]
+	if !ok {
+		channel = make(chan Game, 1) // i.e. non-blocking w/capacity of 1
+		gameChannelMap[game.GameID] = channel
+	}
+
+	channel <- game
+}
+
+// Retrieve the Game state from a channel
+func dequeueGame(gameID string) (Game, error) {
+	var g Game
+	channel, ok := gameChannelMap[gameID]
+	if !ok {
+		return g, errors.New("Failed to dequeue the Game#" + gameID + "!")
+	}
+
+	return <-channel, nil
+}
+
+// The response handler for requests to the /api/games/{gameID}/hit URI; TODO: limit to POST only
+func hitMe(w http.ResponseWriter, r *http.Request) {
 
 	urlParams := mux.Vars(r)
-	game := urlParams["game"]
+	gameID := urlParams["gameID"]
 
-	HitMeMessage := "Here you Go! (for game #" + game + ")"
-	SomethingElseEntirely := "aNewCardOfSomeType"
+	game, err := dequeueGame(gameID)
+	if err != nil {
+		fmt.Println("Something went wrong dequeuing the Game#" + gameID + "!")
+	}
+	//fmt.Println(game)
 
-	message := API{HitMeMessage, SomethingElseEntirely}
-	output, err := json.Marshal(message)
+	newCard, err := getCardFromDeck(gameID)
+	if err != nil {
+		fmt.Println("Something went wrong drawing a card!")
+	}
+	fmt.Println(newCard)
+	game.Player.Cards = append(game.Player.Cards, newCard)
+	fmt.Println(game)
+	defer queueGame(game)
 
+	//HitMeMessage := "Here you Go! (for game #" + gameID + ")"
+	//SomethingElseEntirely := "aNewCardOfSomeType"
+
+	//message := API{HitMeMessage, SomethingElseEntirely}
+	//output, err := json.Marshal(message)
+
+	output, err := json.Marshal(game)
 	if err != nil {
 		fmt.Println("Something went wrong!")
 	}
+	fmt.Println("Updated Game with new Card! i.e. ", string(output))
 
 	fmt.Fprintf(w, string(output))
 }
 
-// Stand is the response handler for requests to the /api/game/gameId/stand URI
-func Stand(w http.ResponseWriter, r *http.Request) {
+// The response handler for requests to the /api/game/gameId/stand URI
+func stand(w http.ResponseWriter, r *http.Request) {
 
 	urlParams := mux.Vars(r)
 	game := urlParams["game"]
@@ -80,32 +178,90 @@ func Stand(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(output))
 }
 
+// a POC test of the gopencils library
 func sharpenPencils() {
-    api := gopencils.Api("https://api.github.com")
-    // Users Resource
-    users := api.Res("users")
+	api := gopencils.Api("https://api.github.com")
+	// Users Resource
+	users := api.Res("users")
 
-    usernames := []string{"bndr", "torvalds", "coleifer"}
+	usernames := []string{"bndr", "torvalds", "coleifer"}
 
-    for _, username := range usernames {
-        // Create a new pointer to response Struct
-        r := new(respStruct)
-        // Get user with id i into the newly created response struct
-        _, err := users.Id(username, r).Get()
-        if err != nil {
-            fmt.Println(err)
-        } else {
-            fmt.Println(r)
-        }
-    }
+	for _, username := range usernames {
+		// Create a new pointer to response Struct
+		r := new(respStruct)
+		// Get user with id i into the newly created response struct
+		_, err := users.Id(username, r).Get()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println(r)
+		}
+	}
+}
+
+// Return a new, shuffled deck of playing cards w/some cards already drawn
+func getNewShuffledDeckWithCards(deckCount, cardCount int) (*DeckWithDrawnCards, error) {
+
+	fmt.Println("Getting Deck and Cards...")
+	res, err := http.Get("https://deckofcardsapi.com/api/deck/new/draw/?count=" + strconv.Itoa(cardCount) + "&deck_count=" + strconv.Itoa(deckCount))
+	if err != nil {
+		fmt.Println("Something went wrong!")
+		return nil, err
+	}
+
+	body, err2 := ioutil.ReadAll(res.Body)
+	if err2 != nil {
+		fmt.Println("Something went wrong!")
+		return nil, err2
+	}
+
+	deck := new(DeckWithDrawnCards)
+	err3 := json.Unmarshal(body, &deck)
+	if err3 != nil {
+		fmt.Println("Something went wrong!")
+		return nil, err3
+	}
+	fmt.Println(*deck)
+
+	fmt.Println("Returning Deck and Cards!")
+	return deck, nil
+}
+
+// Return a playing card from the deck
+func getCardFromDeck(deckID string) (Card, error) {
+
+	var c Card
+	fmt.Println("Getting CardDraw...")
+
+	res, err := http.Get("https://deckofcardsapi.com/api/deck/" + deckID + "/draw/?count=1")
+	if err != nil {
+		fmt.Println("Something went wrong!")
+		return c, err
+	}
+
+	body, err2 := ioutil.ReadAll(res.Body)
+	if err2 != nil {
+		fmt.Println("Something went wrong!")
+		return c, err2
+	}
+
+	cardDraw := new(CardDraw)
+	err3 := json.Unmarshal(body, &cardDraw)
+	if err3 != nil {
+		fmt.Println("Something went wrong!")
+		return c, err3
+	}
+
+	fmt.Println("Got Cards! From helper fn")
+	return cardDraw.Cards[0], nil
 }
 
 func main() {
 	gRouter := mux.NewRouter()
-	gRouter.HandleFunc("/api/{user:[0-9]+}", Hello)
-	gRouter.HandleFunc("/api/game", GetGame)
-	gRouter.HandleFunc("/api/game/{game:[0-9]+}/hit", HitMe)
-	gRouter.HandleFunc("/api/game/{game:[0-9]+}/stand", Stand)
+	//gRouter.HandleFunc("/api/{user:[0-9]+}", Hello)
+	gRouter.HandleFunc("/api/games", startGame)
+	gRouter.HandleFunc("/api/games/{gameID}/hit", hitMe)
+	gRouter.HandleFunc("/api/games/{gameID}/stand", stand)
 	http.Handle("/", gRouter)
 	http.ListenAndServe(":8080", nil)
 }

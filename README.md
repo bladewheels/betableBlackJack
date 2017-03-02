@@ -2,7 +2,8 @@
 
 Demo API in Go for a single-user BlackJack game
 
-The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER at a TABLE; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent single-player games are supported.
+The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER at a GAME; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent, single-player games ARE supported.
+Naturals and splitting pairs are not currently supported in this implementation.
 
 The actors in this drama include:
 
@@ -37,8 +38,8 @@ PLAYER:
   - asking to STAND ie allow the DEALER the chance to beat the PLAYER's HAND
 
 API, the following URIs are used by PLAYER to interact with the game:
-- ~~GET: /api/games returns all GAME IDs.~~ not implemented
-- ~~GET: /api/games/{gameID} returns the state of a GAME.~~ not implemented
+- ~~GET: /api/games returns all GAME IDs.~~ not implemented yet
+- ~~GET: /api/games/{gameID} returns the state of a GAME.~~ not implemented yet
 - POST: /api/games starts a new game; the PLAYER and the DEALER are dealt their hands at this point, returns the GAME state.
 - POST: /api/games/{gameID}/hit adds another CARD to the PLAYER's HAND, returns the GAME state; that state may indicate BUST for the PLAYER i.e. if their HAND > 21.
 - POST: /api/games/{gameID}/stand signals the DEALER to complete play, returns the GAME state; the state includes the outcome of the game.
