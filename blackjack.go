@@ -142,23 +142,27 @@ func dequeueGame(gameID string) (Game, error) {
 	var g Game
 	channel, ok := gameChannelMap[gameID]
 	if !ok {
-		fmt.Println("Something went wrong dequeuing the Game#" + gameID + "!")
 		return g, errors.New("Failed to dequeue the Game#" + gameID + "!")
 	}
 
 	return <-channel, nil
 }
 
+// Remove the channel that carries the Game state
+func deleteGame(gameID string) {
+	delete(gameChannelMap, gameID)
+}
+
 // The response handler for requests to the /api/games/{gameID}/hit URI; TODO: limit to POST only
-func hitMe(w http.ResponseWriter, r *http.Request) {
+func hitPlayer(w http.ResponseWriter, r *http.Request) {
 
 	urlParams := mux.Vars(r)
 	gameID := urlParams["gameID"]
 
-	// Grab the Game in-progress
+	// Grab the Game; it may be in-progress or completed i.e. Player BUST
 	game, err := dequeueGame(gameID)
 	if err != nil {
-		fmt.Println("Something went wrong dequeuing the Game #: " + gameID)
+		fmt.Println(err)
 		fmt.Fprintf(w, "You cannot hit on a completed Game")
 		return
 	}
@@ -182,7 +186,7 @@ func hitMe(w http.ResponseWriter, r *http.Request) {
 	if game.Winner == "none" {
 		defer queueGame(game) // ready to receive more hits
 	} else if game.Winner == "dealer" {
-		defer dequeueGame(game.GameID) // unable to receive more hits
+		deleteGame(game.GameID) // unable to receive more hits
 	}
 
 	// Prepare the return value
@@ -195,7 +199,7 @@ func hitMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // The response handler for requests to the /api/game/gameId/stand URI
-func stand(w http.ResponseWriter, r *http.Request) {
+func playerStands(w http.ResponseWriter, r *http.Request) {
 
 	urlParams := mux.Vars(r)
 	game := urlParams["game"]
@@ -234,7 +238,6 @@ func getNewShuffledDeckWithCards(deckCount, cardCount int) (*DeckWithDrawnCards,
 		fmt.Println("Something went wrong!")
 		return nil, err3
 	}
-	fmt.Println(*deck)
 
 	return deck, nil
 }
@@ -269,8 +272,8 @@ func getCardFromDeck(deckID string) (Card, error) {
 func main() {
 	gRouter := mux.NewRouter()
 	gRouter.HandleFunc("/api/games", startGame)
-	gRouter.HandleFunc("/api/games/{gameID}/hit", hitMe)
-	gRouter.HandleFunc("/api/games/{gameID}/stand", stand)
+	gRouter.HandleFunc("/api/games/{gameID}/hit", hitPlayer)
+	gRouter.HandleFunc("/api/games/{gameID}/stand", playerStands)
 
 	http.Handle("/", gRouter)
 	http.ListenAndServe(":8080", nil)
