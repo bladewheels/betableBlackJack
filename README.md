@@ -7,6 +7,15 @@ Splitting pairs is not currently supported in this implementation.
 
 ![The initial deal and after a few hits](/../screenshots/betableBlackJackDemo.drawAndHit.png?raw=true "Start of a game and after a few hits")
 
+Installation:
+- install Go
+- go get github.com/gorilla/mux
+- go get github.com/bladewheels/betableBlackJack
+
+Run:
+ - cd $GOROOT/src/github.com/bladewheels/betableBlackJack
+ - go run *.go
+
 The actors in this drama include:
 
 GAME:

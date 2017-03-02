@@ -7,22 +7,108 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
-// The response handler for requests to the /api/game/gameId/stand URI
+// Hit the player
+func hitPlayer(gameID string) (Game, error) {
+	var g Game
+
+	// Grab the Game; it may be in-progress or completed i.e. Player BUST
+	game, err := dequeueGame(gameID)
+	if err != nil {
+		msg := "Failed to get the Game! (i.e. #: " + gameID + ")"
+		fmt.Println(msg)
+		return g, errors.New(msg)
+	}
+
+	// Draw a card from the Deck and add it to the Player's hand
+	newCard, err := getNewCard(gameID)
+	if err != nil {
+		fmt.Println("Something went wrong drawing a card!")
+	}
+	game.Player.Cards = append(game.Player.Cards, newCard)
+
+	// Calculate the Player's hand total(s)
+	playerHandTotals := make([]int, 1)
+	for _, card := range game.Player.Cards {
+		playerHandTotals, _ = updateHandTotal(playerHandTotals, card)
+	}
+	game.Player.HandTotals = playerHandTotals
+
+	// Determine if the Player has gone BUST i.e. the Dealer has won
+	game.Winner = determineWinnerAfterPlayerHit(game)
+	if game.Winner == "none" {
+		defer queueGame(game) // ready to receive more hits
+	} else if game.Winner == "dealer" {
+		revealDealerHand(game)
+		deRegisterGame(game.GameID)
+	}
+	return game, nil
+}
+
+// Start the game i.e. get a deck, deal some cards and deal with naturals, if any
+func getGameStarted() (Game, error) {
+	var g Game
+
+	// Get a Deck of Cards with 4 Cards already drawn from the Deck
+	deckCount := 6
+	cardCount := 4
+	deckWithCards, err := getNewShuffledDeckWithCards(deckCount, cardCount)
+	if err != nil {
+		fmt.Println("Failed to get Deck!")
+		return g, errors.New("Failed to get Deck!")
+	}
+
+	// Deal hands to Player and Dealer
+	player := &Player{}
+	player.Cards = append(player.Cards, deckWithCards.Cards[0])
+	dealer := &Dealer{}
+	dealer.Cards = append(dealer.Cards, deckWithCards.Cards[1])
+	player.Cards = append(player.Cards, deckWithCards.Cards[2])
+	dealer.SecretCard = deckWithCards.Cards[3]
+
+	// Calculate point totals for hands...
+	// ...of the Player...
+	playerHandTotals := make([]int, 1)
+	for _, card := range player.Cards {
+		playerHandTotals, _ = updateHandTotal(playerHandTotals, card)
+	}
+	player.HandTotals = playerHandTotals
+
+	// ...and the Dealer
+	dealerHandTotals := make([]int, 1)
+	dealerHandTotals, _ = updateHandTotal(dealerHandTotals, dealer.SecretCard)
+	for _, card := range dealer.Cards {
+		dealerHandTotals, _ = updateHandTotal(dealerHandTotals, card)
+	}
+	dealer.HandTotals = dealerHandTotals
+
+	// Prepare the return value i.e. the Game state
+	deck := &Deck{DeckID: deckWithCards.DeckID, Remaining: deckWithCards.Remaining}
+	game := Game{deck.DeckID, *deck, 52*deckCount - 75, PublicDealer{Dealer: dealer}, *player, ""}
+	game.Winner = determineWinnerAtStartOfGame(game)
+	if game.Winner == "none" {
+		defer queueGame(game) // ready to receive hits
+	} else {
+		revealDealerHand(game)
+	}
+	return game, nil
+}
+
 func playForDealer(gameID string) (Game, error) {
 
 	// Grab the Game; it may be in-progress or completed i.e. Player BUST
 	game, err := dequeueGame(gameID)
 	if err != nil {
-		return game, errors.New("Failed to dequeue the Game#" + gameID + "!")
+		return game, errors.New("Failed to dequeue the Game #" + gameID + "!")
 	}
 
 	for dealerShouldHit(game) {
-		// Draw a card from the Deck and add it to the Dealer's hand
-		newCard, err2 := getCardFromDeck(game.GameID)
+
+		newCard, err2 := getNewCard(game.GameID)
 		if err2 != nil {
-			return game, errors.New("Failed to draw a card!")
+			fmt.Println("Something went wrong drawing a card!")
 		}
 		game.Dealer.Dealer.Cards = append(game.Dealer.Dealer.Cards, newCard)
 
@@ -38,6 +124,24 @@ func playForDealer(gameID string) (Game, error) {
 	game.Winner = determineWinnerAtEndOfGame(game)
 	revealDealerHand(game)
 	return game, nil
+}
+
+// Get a new Card; retry up to 3 times if at first you don't succeed...
+func getNewCard(deckID string) (Card, error) {
+	var newCard Card
+	err := Do(func(attempt int) (bool, error) {
+		var err error
+		card, err := getCardFromDeck(deckID)
+		if err != nil {
+			time.Sleep(200 * time.Millisecond) // wait a sec
+		}
+		newCard = card
+		return attempt < 3, err // try 3 times
+	})
+	if err != nil {
+		return newCard, errors.New("Failed to draw a card!")
+	}
+	return newCard, nil
 }
 
 // Return a playing card from the deck
@@ -62,6 +166,11 @@ func getCardFromDeck(deckID string) (Card, error) {
 	if err3 != nil {
 		fmt.Println("Failed to unmarshal the CardDraw!")
 		return c, err3
+	}
+
+	if len(cardDraw.Cards) < 1 {
+		// TODO: retry 3 times
+		return c, errors.New("The CardDraw did NOT have a card in it!")
 	}
 
 	return cardDraw.Cards[0], nil
@@ -172,7 +281,7 @@ func queueGame(game Game) {
 }
 
 // Remove the channel that carries the Game state
-func deleteGame(gameID string) {
+func deRegisterGame(gameID string) {
 	delete(gameChannelMap, gameID)
 }
 
