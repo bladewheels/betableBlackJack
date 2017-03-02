@@ -52,41 +52,21 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 	dealer.SecretCard = deckWithCards.Cards[3]
 
 	// Calculate point totals for hands...
-
-	// ...of the Player
+	// ...of the Player...
 	playerHandTotals := make([]int, 1)
-	//playerSum := int64(0)
 	for _, card := range player.Cards {
-		cardValue, err2 := strconv.ParseInt(card.Value, 10, 0)
-		if err2 != nil {
-			// Must be an Ace or face Card
-			if card.Value == "ACE" {
-				// TODO: Incomplete
-				//initialTotal := playerHandTotals[0]
-				//playerHandTotals[0] = initialTotal + 1
-				//if len(playerHandTotals) > 1 {
-				for i, initialTotal := range playerHandTotals {
-					playerHandTotals[i] = initialTotal + 1
-					playerHandTotals = append(playerHandTotals, initialTotal+11)
-				}
-				//}
-				// TODO: add 1&11 values to existing slots in slice AND add a new slot and add it there too
-				//append(playerHandTotals, initialTotal + 11)
-			} else {
-				for i, initialTotal := range playerHandTotals {
-					playerHandTotals[i] = initialTotal + 10
-				}
-			}
-		} else {
-			for i, initialTotal := range playerHandTotals {
-				playerHandTotals[i] = initialTotal + int(cardValue)
-			}
-		}
+		playerHandTotals, _ = updateHandTotal(playerHandTotals, card)
 	}
-	//playerHandTotals = append(playerHandTotals, int(playerSum))
 	player.HandTotals = playerHandTotals
 
-	// TODO: ...of the Dealer
+	// ...and the Dealer
+	dealerHandTotals := make([]int, 1)
+	dealerHandTotals, _ = updateHandTotal(dealerHandTotals, dealer.SecretCard)
+	for _, card := range dealer.Cards {
+		dealerHandTotals, _ = updateHandTotal(dealerHandTotals, card)
+	}
+	dealer.HandTotals = dealerHandTotals
+	fmt.Println(dealer.HandTotals)
 
 	deck := &Deck{DeckID: deckWithCards.DeckID, Remaining: deckWithCards.Remaining}
 	game := Game{deck.DeckID, *deck, 52*deckCount - 75, PublicDealer{Dealer: dealer}, *player}
@@ -99,6 +79,29 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Got Game as JSON! i.e. ", string(output))
 
 	fmt.Fprintf(w, string(output))
+}
+
+// Update the Player or Dealer hand total(s) with the value of a Card
+func updateHandTotal(handTotals []int, card Card) ([]int, error) {
+	cardValue, err := strconv.ParseInt(card.Value, 10, 0)
+	if err != nil {
+		// Must be an Ace or face Card
+		if card.Value == "ACE" {
+			for i, initialTotal := range handTotals {
+				handTotals[i] = initialTotal + 1
+				handTotals = append(handTotals, initialTotal+11)
+			}
+		} else {
+			for i, initialTotal := range handTotals {
+				handTotals[i] = initialTotal + 10
+			}
+		}
+	} else {
+		for i, initialTotal := range handTotals {
+			handTotals[i] = initialTotal + int(cardValue)
+		}
+	}
+	return handTotals, nil
 }
 
 // Queue the Game state in a channel for future use
