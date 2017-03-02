@@ -21,6 +21,7 @@ type Game struct {
 	ShuffleAt int          `json:"shuffle_at"`
 	Dealer    PublicDealer `json:"dealer"`
 	Player    Player       `json:"player"`
+	Winner    string       `json:"winner"`
 }
 
 // Player holds the state of a player of a game of BlackJack
