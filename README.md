@@ -34,7 +34,7 @@ DEALER:
 - stops self-dealing when 17 TOTAL HAND is reached
 
 PLAYER:
-- can initiate or abandon a game of BlackJack
+- can initiate a game of BlackJack
 - can play BlackJack by:
   - asking to be HIT ie add another CARD to their HAND
   - asking to STAND ie allow the DEALER the chance to beat the PLAYER's HAND
