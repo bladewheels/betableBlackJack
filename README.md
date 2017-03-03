@@ -22,6 +22,7 @@ The current implementation responds to either POST or GET requests for ease of e
 ### Run:
 1. cd $GOPATH/src/github.com/bladewheels/betableBlackJack
 2. go run *.go
+###### If you have been working with Go longer than I have (2 days!) you may know of a better way to Install and/or Run this code e.g. building, PRs welcome!
 
 #### The actors in this drama include:
 
@@ -76,7 +77,6 @@ curl -v -H "Accept: application/json" -H "Content-type: application/json" -X POS
 
 ##### Thoughts about the design/implementation:
 
-The ensuing GAME state could be serialized to JSON by each endpoint, stored in a channel for the next endpoint to consume - not a scalable strategy perhaps but good enough for a quick&dirty demo? Wouldn't work for multi-player.
+A GAME is created when the /games endpoint is hit, and it is stored in an in-memory channel. Subsequent calls to /hit or /stand dequeue the GAME, operate upon it and re-queue it.
 
-
-Otherwise, throw it into an in-memory map, keyed by TABLE GUID, or a persistent data store eg Mongo? for ease of retrieval; might need access-locking if multi-player? Depends if turn-taking is DEALER-allocated or is free-for-all?
+The Cards and Deck(s) come from an external API (https://deckofcardsapi.com/) who also shuffles for us. I've added a retry mechanism in case pulling those items fails the first time.
