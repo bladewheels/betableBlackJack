@@ -2,7 +2,9 @@
 
 Demo API in Go for a single-user BlackJack game
 
-The nature of HTTP is call and response so this gameplay is most straightforward for a single PLAYER in a GAME; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints. Concurrent, single-player games with naturals ARE supported.
+The nature of HTTP is call and response so this BlackJack gameplay is most straightforward for a single PLAYER in a GAME; polling (or eg WebSockets, in a future implementation) could be utilized for multi-PLAYER games but this initial design is INTENDED FOR SINGLE PLAYER USE only, due to time-to-market constraints.
+
+Concurrent, single-player games with naturals ARE supported.
 Splitting pairs is not currently supported in this implementation.
 
 ![The initial deal and after a few hits](/../screenshots/betableBlackJackDemo.drawAndHit.png?raw=true "Start of a game and after a few hits")
@@ -13,7 +15,7 @@ Installation:
 - go get github.com/bladewheels/betableBlackJack
 
 Run:
- - cd $GOROOT/src/github.com/bladewheels/betableBlackJack
+ - cd $GOPATH/src/github.com/bladewheels/betableBlackJack
  - go run *.go
 
 The actors in this drama include:
