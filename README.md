@@ -22,6 +22,7 @@ The current implementation responds to either POST or GET requests for ease of e
 ### Run:
 1. cd $GOPATH/src/github.com/bladewheels/betableBlackJack
 2. go run *.go
+
 ###### If you have been working with Go longer than I have (2 days!) you may know of a better way to Install and/or Run this code e.g. building, PRs welcome!
 
 #### The actors in this drama include:
