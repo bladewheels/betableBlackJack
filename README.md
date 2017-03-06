@@ -8,7 +8,7 @@ Concurrent, single-player games with naturals ARE supported.
 
 Splitting pairs is not currently supported in this implementation.
 
-The current implementation responds to either POST or GET requests for ease of exploration i.e. GETs with a web browser or HTTP tool. It is intended that the API implement only POST endpoints so as to remain RESTful.
+The current implementation responds to either POST or GET requests for ease of exploration i.e. GETs with a web browser or HTTP tool. It is intended that the API implement only POST/PATCH endpoints so as to remain RESTful.
 
 ### Example JSON responses
 
@@ -61,17 +61,17 @@ The current implementation responds to either POST or GET requests for ease of e
 - ~~GET: /api/games returns all GAME IDs.~~ not implemented yet
 - ~~GET: /api/games/{gameID} returns the state of a GAME.~~ not implemented yet
 - POST: /api/games starts a new game; the PLAYER and the DEALER are dealt their hands at this point, returns the GAME state.
-- PUT: /api/games/{gameID}/hit adds another CARD to the PLAYER's HAND, returns the GAME state; that state may indicate BUST for the PLAYER i.e. if their HAND > 21.
-- PUT: /api/games/{gameID}/stand signals the DEALER to complete play, returns the GAME state; the state includes the outcome of the game.
+- PATCH: /api/games/{gameID}/hit adds another CARD to the PLAYER's HAND, returns the GAME state; that state may indicate BUST for the PLAYER i.e. if their HAND > 21.
+- PATCH: /api/games/{gameID}/stand signals the DEALER to complete play, returns the GAME state; the state includes the outcome of the game.
 
 ###### Typical gameplay (e.g. w/curl, telnet, Postman, etc.):
 
 - POST to: /api/games, the response models the state of a new GAME, including the HANDs dealt to the DEALER and PLAYER
  - examine the GAME state and identify the GAME ID; decide whether to HIT or STAND and use the ID in the following calls:
-- to HIT, PUT to: /api/games/{gameID}/hit
+- to HIT, PATCH to: /api/games/{gameID}/hit
  - examine the GAME state and identify your HAND; decide whether to HIT or STAND
  - repeat ad naseum or until BUST or STANDing
-- to STAND, PUT to: /api/games/{gameID}/stand
+- to STAND, PATCH to: /api/games/{gameID}/stand
 
 ###### Example use of curl against a localhost:
 curl -v -H "Accept: application/json" -H "Content-type: application/json" -X POST http://localhost:8080/api/games

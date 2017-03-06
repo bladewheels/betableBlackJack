@@ -34,7 +34,7 @@ func start(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(output))
 }
 
-// The response handler for requests to the /api/games/{gameID}/hit URI; TODO: limit to PUT only
+// The response handler for requests to the /api/games/{gameID}/hit URI; TODO: limit to PATCH only
 func hit(w http.ResponseWriter, r *http.Request) {
 
 	game, err := hitPlayer(getParamFromRequest("gameID", r))
@@ -53,7 +53,7 @@ func hit(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(output))
 }
 
-// The response handler for requests to the /api/game/gameId/stand URI; TODO: limit to PUT only
+// The response handler for requests to the /api/game/gameId/stand URI; TODO: limit to PATCH only
 func stand(w http.ResponseWriter, r *http.Request) {
 
 	game, err := playForDealer(getParamFromRequest("gameID", r))
